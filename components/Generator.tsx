@@ -40,7 +40,7 @@ export default function Generator() {
 
       const data = (await response.json()) as GenerateResponse | { error: string; remaining?: number };
       if (!response.ok || !("images" in data)) {
-        throw new Error(data.error || "Something went wrong generating thumbnails.");
+        throw new Error((data as {error?: string}).error || "Something went wrong generating thumbnails.");
       }
 
       setImages(data.images);
