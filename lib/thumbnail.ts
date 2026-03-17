@@ -22,7 +22,7 @@ export async function createWatermarkOverlay() {
   return Buffer.from(svg);
 }
 
-export async function postProcessThumbnail(input: ArrayBuffer, addWatermark: boolean) {
+export async function postProcessThumbnail(input: Buffer, addWatermark: boolean) {
   const image = sharp(Buffer.from(input)).resize({
     width: THUMBNAIL_SIZE.width,
     height: THUMBNAIL_SIZE.height,
