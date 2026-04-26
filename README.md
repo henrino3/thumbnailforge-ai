@@ -24,6 +24,15 @@ AI-powered YouTube thumbnail generator for creators.
 OPENAI_API_KEY=your_openai_api_key
 ```
 
+## Optional analytics
+
+```bash
+NEXT_PUBLIC_PLAUSIBLE_DOMAIN=thumbnailforge-ai.vercel.app
+NEXT_PUBLIC_PLAUSIBLE_SRC=https://plausible.io/js/script.js
+```
+
+If these vars are omitted, analytics stays off.
+
 ## Local development
 
 ```bash

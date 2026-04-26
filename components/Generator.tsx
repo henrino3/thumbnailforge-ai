@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { Download, LoaderCircle, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type GeneratedImage = {
   id: string;
@@ -17,6 +18,11 @@ type GenerateResponse = {
   watermarked: boolean;
 };
 
+function track(eventName: string, props?: Record<string, string>) {
+  if (typeof window === "undefined" || typeof window.plausible !== "function") return;
+  window.plausible(eventName, props ? { props } : undefined);
+}
+
 export default function Generator() {
   const [title, setTitle] = useState("");
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -25,6 +31,15 @@ export default function Generator() {
   const [remaining, setRemaining] = useState(3);
 
   const canGenerate = useMemo(() => title.trim().length > 6 && !loading, [loading, title]);
+
+  useEffect(() => {
+    if (remaining > 1) return;
+
+    track("paywall_seen", {
+      location: "thumbnail_generator",
+      remaining: String(remaining),
+    });
+  }, [remaining]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,11 +55,31 @@ export default function Generator() {
 
       const data = (await response.json()) as GenerateResponse | { error: string; remaining?: number };
       if (!response.ok || !("images" in data)) {
+        const nextRemaining = typeof data.remaining === "number" ? data.remaining : remaining;
+        setRemaining(nextRemaining);
+
+        if (response.status === 429) {
+          track("generation_limit_hit", {
+            location: "thumbnail_generator",
+            remaining: String(nextRemaining),
+          });
+        } else {
+          track("generation_error", {
+            location: "thumbnail_generator",
+            reason: response.status >= 500 ? "server" : "validation",
+          });
+        }
+
         throw new Error((data as {error?: string}).error || "Something went wrong generating thumbnails.");
       }
 
       setImages(data.images);
       setRemaining(data.remaining);
+      track("generation_success", {
+        location: "thumbnail_generator",
+        remaining: String(data.remaining),
+        variants: String(data.images.length),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong generating thumbnails.");
     } finally {
@@ -94,7 +129,7 @@ export default function Generator() {
             </div>
           </div>
 
-          <form className="mt-8 space-y-4" onSubmit={onSubmit}>
+          <form className="mt-8 space-y-4" onSubmit={onSubmit} data-analytics-submit-event="generate_submit" data-analytics-location="thumbnail_generator" data-analytics-label="thumbnail_generation">
             <label className="block text-sm font-medium text-slate-200" htmlFor="title">
               Video title or topic
             </label>
@@ -107,6 +142,9 @@ export default function Generator() {
             />
             <button
               type="submit"
+              data-analytics-event="cta_click"
+              data-analytics-location="thumbnail_generator"
+              data-analytics-label="generate_4_thumbnail_variants"
               disabled={!canGenerate}
               className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 px-5 py-4 text-base font-semibold text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -115,6 +153,36 @@ export default function Generator() {
             </button>
             {error ? <p className="text-sm text-red-300">{error}</p> : null}
           </form>
+
+          {remaining <= 1 ? (
+            <div className="mt-6 rounded-3xl border border-orange-400/25 bg-orange-500/10 p-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-200">Ready for more testing?</p>
+              <h3 className="mt-2 text-xl font-semibold text-white">Upgrade when you want watermark-free iterations on demand.</h3>
+              <p className="mt-2 text-sm text-slate-300">
+                Pro is built for creators who want to compare more ideas per upload without hitting the daily cap.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="#pricing"
+                  data-analytics-event="cta_click"
+                  data-analytics-location="generator_paywall"
+                  data-analytics-label="view_pricing_after_limit"
+                  className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.01]"
+                >
+                  View pricing
+                </Link>
+                <Link
+                  href="mailto:hello@thumbnailforge.ai?subject=ThumbnailForge%20Pro"
+                  data-analytics-event="cta_click"
+                  data-analytics-location="generator_paywall"
+                  data-analytics-label="contact_sales_after_limit"
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Ask about Pro
+                </Link>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -132,6 +200,9 @@ export default function Generator() {
                   <a
                     href={image.image}
                     download={`thumbnailforge-${index + 1}.png`}
+                    data-analytics-event="download_click"
+                    data-analytics-location="thumbnail_results"
+                    data-analytics-label={`download_variant_${index + 1}`}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
                     <Download className="h-4 w-4" /> Download PNG

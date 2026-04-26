@@ -8,6 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default function BlogIndexPage() {
+  const posts = [...blogPosts].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+
   return (
     <main className="pb-20">
       <section className="mx-auto max-w-4xl">
@@ -18,10 +20,11 @@ export default function BlogIndexPage() {
         <p className="mt-5 max-w-2xl text-lg text-slate-300">
           Practical guides for creators who want more clicks without turning every thumbnail into spam.
         </p>
+        <p className="mt-3 text-sm text-slate-400">{posts.length}+ articles on CTR, creator workflows, thumbnail case studies, and YouTube growth.</p>
       </section>
 
       <section className="mx-auto mt-12 grid max-w-5xl gap-6">
-        {blogPosts.map((post) => (
+        {posts.map((post) => (
           <Link key={post.slug} href={`/blog/${post.slug}`} className="glass-panel rounded-3xl p-7 transition hover:-translate-y-1">
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
               <span>{post.publishedAt}</span>
